@@ -174,5 +174,4 @@ A combined test runner and configuration are provided:
 3. Add tests for new functionality
 4. Open a pull request referencing the related issue
 
-## License
-See LICENSE (if applicable).
+
