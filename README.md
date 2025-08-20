@@ -1,4 +1,4 @@
-# Azure OpenAI Voice Cloning System
+# Azure OpenAI Voice Cloning 
 
 ## Overview
 An Azure-first, enterprise-grade voice cloning system that leverages Azure AI Speech (including Custom Neural Voice), Azure OpenAI (including gpt-4o-mini-tts), and Azure Translator. The platform provides secure voice enrollment, model training, real-time and batch text-to-speech synthesis, translation, and end-to-end observability, with strong security and compliance foundations.
