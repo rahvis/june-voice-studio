@@ -1,0 +1,79 @@
+{
+  "name": "voice-cloning-frontend",
+  "version": "1.0.0",
+  "description": "Frontend application for Azure Voice Cloning System",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "dependencies": {
+    "next": "^14.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "@azure/msal-browser": "^3.7.0",
+    "@azure/msal-react": "^2.0.0",
+    "@azure/msal-node": "^2.6.0",
+    "axios": "^1.6.0",
+    "react-hook-form": "^7.48.0",
+    "react-query": "^3.39.0",
+    "zustand": "^4.4.0",
+    "framer-motion": "^10.16.0",
+    "lucide-react": "^0.292.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.0.0",
+    "react-dropzone": "^14.2.0",
+    "wavesurfer.js": "^7.0.0",
+    "recordrtc": "^5.6.2",
+    "web-audio-api": "^0.2.2",
+    "react-hot-toast": "^2.4.1",
+    "react-intersection-observer": "^9.5.0",
+    "react-virtualized": "^9.22.5",
+    "date-fns": "^2.30.0",
+    "react-i18next": "^13.5.0",
+    "i18next": "^23.7.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.8.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@types/recordrtc": "^5.6.0",
+    "@typescript-eslint/eslint-plugin": "^6.9.0",
+    "@typescript-eslint/parser": "^6.9.0",
+    "autoprefixer": "^10.4.16",
+    "eslint": "^8.52.0",
+    "eslint-config-next": "^14.0.0",
+    "eslint-plugin-react": "^7.33.0",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
+    "postcss": "^8.4.31",
+    "tailwindcss": "^3.3.5",
+    "@tailwindcss/forms": "^0.5.7",
+    "@tailwindcss/typography": "^0.5.10",
+    "@tailwindcss/aspect-ratio": "^0.4.2",
+    "typescript": "^5.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  }
+}

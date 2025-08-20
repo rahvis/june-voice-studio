@@ -1,0 +1,43 @@
+# Azure Functions Core
+azure-functions==1.17.0
+
+# Azure SDK Dependencies
+azure-identity==1.15.0
+azure-cognitiveservices-speech==1.34.0
+azure-ai-translator==1.0.0
+azure-openai==1.0.0
+azure-storage-blob==12.19.0
+azure-storage-queue==12.7.0
+azure-cosmos==4.4.0
+azure-keyvault-secrets==4.7.0
+azure-monitor-opentelemetry==1.0.0
+
+# HTTP and API
+httpx==0.25.2
+requests==2.31.0
+fastapi==0.104.1
+
+# Data Processing
+pydantic==2.5.0
+python-multipart==0.0.6
+python-jose[cryptography]==3.3.0
+
+# Audio Processing
+librosa==0.10.1
+soundfile==0.12.1
+numpy==1.24.3
+pydub==0.25.1
+
+# Database
+sqlalchemy==2.0.23
+pymongo==4.6.0
+
+# Utilities
+python-dotenv==1.0.0
+tenacity==8.2.3
+python-dateutil==2.8.2
+pytz==2023.3
+
+# Monitoring and Logging
+structlog==23.2.0
+prometheus-client==0.19.0

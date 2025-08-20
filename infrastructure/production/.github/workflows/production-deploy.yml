@@ -1,0 +1,176 @@
+name: Production CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'azure-functions/**'
+      - 'infrastructure/**'
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  AZURE_SUBSCRIPTION: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  RESOURCE_GROUP: voice-cloning-prod
+  LOCATION: East US 2
+  ENVIRONMENT: prod
+  BACKEND_APP: voice-cloning-backend-prod
+  FUNCTIONS_APP: voice-cloning-functions-prod
+  FRONTEND_APP: voice-cloning-frontend-prod
+  SLOT: staging
+
+jobs:
+  validate:
+    name: Validate & Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install Python deps
+        run: |
+          pip install -r backend/requirements.txt
+          pip install -r tests/requirements.txt
+      - name: Install Node deps
+        run: |
+          cd frontend && npm ci
+      - name: Lint backend
+        run: |
+          pip install flake8 black mypy
+          flake8 backend/ --max-line-length=120 --extend-ignore=E203,W503 || true
+          black --check backend/ || true
+          mypy backend/ --ignore-missing-imports || true
+      - name: Lint frontend
+        run: |
+          cd frontend && npm run lint || true && npm run type-check || true
+
+  test:
+    name: Tests
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: |
+          pip install -r backend/requirements.txt
+          pip install -r tests/requirements.txt
+      - name: Run unit tests
+        run: |
+          pytest tests/unit/ -v --cov=backend --cov-report=xml --cov-report=term
+      - name: Run integration tests
+        run: pytest tests/integration/ -v || true
+      - name: Run security tests
+        run: pytest tests/security/ -v || true
+      - name: Run compliance tests
+        run: pytest tests/compliance/ -v || true
+      - name: Run performance tests
+        run: pytest tests/performance/ -v || true
+
+  build:
+    name: Build Artifacts
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Build backend
+        run: |
+          pip install -r backend/requirements.txt
+          cd backend && tar -czf ../backend-build.tar.gz .
+      - name: Build functions
+        run: |
+          pip install -r azure-functions/requirements.txt
+          cd azure-functions && tar -czf ../functions-build.tar.gz .
+      - name: Build frontend
+        run: |
+          cd frontend && npm ci && npm run build && npm run export
+          cd frontend/out && tar -czf ../../frontend-build.tar.gz .
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: prod-builds
+          path: |
+            backend-build.tar.gz
+            functions-build.tar.gz
+            frontend-build.tar.gz
+
+  deploy:
+    name: Deploy to Azure
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://$FRONTEND_APP.azurewebsites.net
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: prod-builds
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Deploy infrastructure
+        shell: pwsh
+        run: |
+          cd infrastructure/production
+          ./deploy.ps1 -ResourceGroupName "$Env:RESOURCE_GROUP" -Location "$Env:LOCATION" -Environment "$Env:ENVIRONMENT"
+      - name: Deploy backend to staging slot
+        run: |
+          az webapp deploy --resource-group "$RESOURCE_GROUP" --name "$BACKEND_APP" --src-path backend-build.tar.gz --type zip --slot "$SLOT"
+      - name: Deploy functions to staging slot
+        run: |
+          az webapp deploy --resource-group "$RESOURCE_GROUP" --name "$FUNCTIONS_APP" --src-path functions-build.tar.gz --type zip --slot "$SLOT"
+      - name: Deploy frontend to staging slot
+        run: |
+          az webapp deploy --resource-group "$RESOURCE_GROUP" --name "$FRONTEND_APP" --src-path frontend-build.tar.gz --type zip --slot "$SLOT"
+      - name: Health check staging
+        run: |
+          curl -f https://$BACKEND_APP-$SLOT.azurewebsites.net/health
+          curl -f https://$FUNCTIONS_APP-$SLOT.azurewebsites.net/api/health
+          curl -f https://$FRONTEND_APP-$SLOT.azurewebsites.net
+      - name: Manual approval gate
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: ${{ secrets.APPROVERS }}
+          minimum-approvals: 1
+          issue-title: "Approve production slot swap"
+          issue-body: "Approve to swap staging to production for voice cloning system."
+      - name: Swap slots
+        run: |
+          az webapp deployment slot swap -g "$RESOURCE_GROUP" -n "$BACKEND_APP" --slot "$SLOT" --target-slot production
+          az webapp deployment slot swap -g "$RESOURCE_GROUP" -n "$FUNCTIONS_APP" --slot "$SLOT" --target-slot production
+          az webapp deployment slot swap -g "$RESOURCE_GROUP" -n "$FRONTEND_APP" --slot "$SLOT" --target-slot production
+      - name: Post-swap health
+        run: |
+          curl -f https://$BACKEND_APP.azurewebsites.net/health
+          curl -f https://$FUNCTIONS_APP.azurewebsites.net/api/health
+          curl -f https://$FRONTEND_APP.azurewebsites.net
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          az webapp deployment slot swap -g "$RESOURCE_GROUP" -n "$BACKEND_APP" --slot production --target-slot "$SLOT"
+          az webapp deployment slot swap -g "$RESOURCE_GROUP" -n "$FUNCTIONS_APP" --slot production --target-slot "$SLOT"
+          az webapp deployment slot swap -g "$RESOURCE_GROUP" -n "$FRONTEND_APP" --slot production --target-slot "$SLOT"
+

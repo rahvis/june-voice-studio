@@ -1,0 +1,158 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "prod"
+    },
+    "projectName": {
+      "value": "voice-cloning"
+    },
+    "location": {
+      "value": "East US 2"
+    },
+    "subscriptionId": {
+      "value": ""
+    },
+    "resourceGroupName": {
+      "value": ""
+    },
+    "networkConfig": {
+      "value": {
+        "vnetAddressPrefix": "10.0.0.0/16",
+        "subnetConfigs": {
+          "appGateway": {
+            "name": "appgateway-subnet",
+            "addressPrefix": "10.0.1.0/24",
+            "serviceEndpoints": []
+          },
+          "appService": {
+            "name": "appservice-subnet",
+            "addressPrefix": "10.0.2.0/24",
+            "serviceEndpoints": ["Microsoft.Web", "Microsoft.KeyVault", "Microsoft.Storage", "Microsoft.CosmosDB"]
+          },
+          "functions": {
+            "name": "functions-subnet",
+            "addressPrefix": "10.0.3.0/24",
+            "serviceEndpoints": ["Microsoft.Web", "Microsoft.KeyVault", "Microsoft.Storage", "Microsoft.CosmosDB"]
+          },
+          "database": {
+            "name": "database-subnet",
+            "addressPrefix": "10.0.4.0/24",
+            "serviceEndpoints": ["Microsoft.KeyVault", "Microsoft.Storage", "Microsoft.CosmosDB"]
+          },
+          "monitoring": {
+            "name": "monitoring-subnet",
+            "addressPrefix": "10.0.5.0/24",
+            "serviceEndpoints": ["Microsoft.KeyVault", "Microsoft.Storage", "Microsoft.OperationalInsights"]
+          }
+        }
+      }
+    },
+    "securityConfig": {
+      "value": {
+        "enableDDoSProtection": true,
+        "enableWAF": true,
+        "enablePrivateEndpoints": true,
+        "enableNetworkSecurityGroups": true,
+        "enableFirewallRules": true,
+        "allowedIPRanges": [
+          "10.0.0.0/8",
+          "172.16.0.0/12",
+          "192.168.0.0/16"
+        ],
+        "adminIPRanges": [
+          "10.0.0.0/8"
+        ]
+      }
+    },
+    "scalingConfig": {
+      "value": {
+        "appServicePlan": {
+          "sku": "P1v3",
+          "capacity": 3,
+          "autoScale": true,
+          "minCapacity": 2,
+          "maxCapacity": 10
+        },
+        "functionsPlan": {
+          "sku": "P1v3",
+          "capacity": 2,
+          "autoScale": true,
+          "minCapacity": 1,
+          "maxCapacity": 5
+        },
+        "frontendPlan": {
+          "sku": "P1v3",
+          "capacity": 2,
+          "autoScale": true,
+          "minCapacity": 1,
+          "maxCapacity": 5
+        },
+        "appServiceEnvironment": {
+          "sku": "I3",
+          "capacity": 2,
+          "autoScale": true,
+          "minCapacity": 1,
+          "maxCapacity": 5
+        }
+      }
+    },
+    "monitoringConfig": {
+      "value": {
+        "enableApplicationInsights": true,
+        "enableLogAnalytics": true,
+        "enableAzureMonitor": true,
+        "enableAlerts": true,
+        "enableDiagnostics": true,
+        "retentionDays": 90,
+        "samplingPercentage": 100,
+        "enableProfiler": true,
+        "enableSnapshotDebugger": true,
+        "enableLiveMetrics": true
+      }
+    },
+    "backupConfig": {
+      "value": {
+        "enableBackup": true,
+        "backupFrequency": "Daily",
+        "backupRetention": 30,
+        "backupTime": "02:00",
+        "enablePointInTimeRestore": true,
+        "enableGeoRedundantBackup": true
+      }
+    },
+    "cdnConfig": {
+      "value": {
+        "enableCDN": true,
+        "cdnProfile": "Microsoft",
+        "cdnEndpoint": {
+          "optimizationType": "GeneralWebDelivery",
+          "queryStringCachingBehavior": "IgnoreQueryString",
+          "compressionEnabled": true,
+          "httpAllowed": false,
+          "httpsAllowed": true,
+          "originHostHeader": "",
+          "originPath": "",
+          "isHttpAllowed": false,
+          "isHttpsAllowed": true,
+          "queryStringCachingBehavior": "IgnoreQueryString"
+        }
+      }
+    },
+    "tags": {
+      "value": {
+        "Environment": "Production",
+        "Project": "Voice Cloning System",
+        "Owner": "DevOps Team",
+        "CostCenter": "AI-001",
+        "Compliance": "GDPR-HIPAA-SOC2",
+        "Backup": "Daily",
+        "Monitoring": "Enabled",
+        "Security": "High",
+        "Tier": "Production"
+      }
+    }
+  }
+}
+

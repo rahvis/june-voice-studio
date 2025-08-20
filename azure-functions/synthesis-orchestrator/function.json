@@ -1,0 +1,34 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    {
+      "authLevel": "function",
+      "type": "httpTrigger",
+      "direction": "in",
+      "name": "req",
+      "methods": [
+        "POST"
+      ],
+      "route": "synthesis-orchestrator"
+    },
+    {
+      "type": "http",
+      "direction": "out",
+      "name": "$return"
+    },
+    {
+      "type": "queue",
+      "direction": "out",
+      "name": "synthesisQueue",
+      "queueName": "synthesis-queue",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "type": "queue",
+      "direction": "out",
+      "name": "batchQueue",
+      "queueName": "batch-synthesis-queue",
+      "connection": "AzureWebJobsStorage"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    {
+      "name": "message",
+      "type": "queueTrigger",
+      "direction": "in",
+      "queueName": "batch-synthesis-queue",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "name": "processedAudio",
+      "type": "blob",
+      "direction": "out",
+      "path": "voice-cloning/synthesized-audio/{rand-guid}.wav",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "name": "metadata",
+      "type": "blob",
+      "direction": "out",
+      "path": "voice-cloning/synthesis-metadata/{rand-guid}.json",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "name": "notificationQueue",
+      "type": "queue",
+      "direction": "out",
+      "queueName": "notification-queue",
+      "connection": "AzureWebJobsStorage"
+    }
+  ]
+}

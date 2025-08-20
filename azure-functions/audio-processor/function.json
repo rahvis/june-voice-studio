@@ -1,0 +1,26 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    {
+      "name": "myblob",
+      "type": "blobTrigger",
+      "direction": "in",
+      "path": "voice-cloning/audio-uploads/{name}",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "type": "blob",
+      "direction": "out",
+      "name": "processedAudio",
+      "path": "voice-cloning/processed-audio/{name}",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "type": "queue",
+      "direction": "out",
+      "name": "processingQueue",
+      "queueName": "audio-processing-queue",
+      "connection": "AzureWebJobsStorage"
+    }
+  ]
+}

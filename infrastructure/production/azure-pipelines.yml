@@ -1,0 +1,605 @@
+# Azure DevOps CI/CD Pipeline for Voice Cloning System
+# This pipeline handles automated testing, building, and deployment
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'azure-functions/**'
+      - 'infrastructure/**'
+    exclude:
+      - '**/*.md'
+      - '**/*.txt'
+      - '**/node_modules/**'
+      - '**/__pycache__/**'
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+
+variables:
+  # Build variables
+  solution: '**/*.sln'
+  buildPlatform: 'Any CPU'
+  buildConfiguration: 'Release'
+  
+  # Azure variables
+  azureSubscription: 'Voice-Cloning-Production'
+  resourceGroupName: 'voice-cloning-prod'
+  location: 'East US 2'
+  
+  # Application variables
+  backendAppName: 'voice-cloning-backend-prod'
+  functionsAppName: 'voice-cloning-functions-prod'
+  frontendAppName: 'voice-cloning-frontend-prod'
+  
+  # Environment variables
+  environmentName: 'Production'
+  
+  # Testing variables
+  testResultsFormat: 'JUnit'
+  testResultsFiles: '**/test-results/*.xml'
+  coverageReportDir: '**/coverage/**'
+  
+  # Security variables
+  securityScanEnabled: true
+  complianceCheckEnabled: true
+  
+  # Deployment slot
+  slotName: 'staging'
+
+stages:
+- stage: Validate
+  displayName: 'Validate & Security Check'
+  jobs:
+  - job: Validation
+    displayName: 'Code Validation'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
+        addToPath: true
+      displayName: 'Set up Python 3.11'
+    
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+      displayName: 'Set up Node.js 18.x'
+    
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+        pip install -r tests/requirements.txt
+      displayName: 'Install Python dependencies'
+    
+    - script: |
+        cd frontend
+        npm ci
+      displayName: 'Install Node.js dependencies'
+    
+    - script: |
+        python -m flake8 backend/ --max-line-length=120 --extend-ignore=E203,W503
+      displayName: 'Python linting (flake8)'
+      continueOnError: true
+    
+    - script: |
+        python -m black --check --diff backend/
+      displayName: 'Python code formatting (black)'
+      continueOnError: true
+    
+    - script: |
+        python -m mypy backend/ --ignore-missing-imports
+      displayName: 'Python type checking (mypy)'
+      continueOnError: true
+    
+    - script: |
+        cd frontend
+        npm run lint
+      displayName: 'TypeScript/ESLint checking'
+      continueOnError: true
+    
+    - script: |
+        cd frontend
+        npm run type-check
+      displayName: 'TypeScript type checking'
+      continueOnError: true
+
+- stage: Test
+  displayName: 'Testing'
+  dependsOn: Validate
+  condition: succeeded()
+  jobs:
+  - job: UnitTests
+    displayName: 'Unit Tests'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
+        addToPath: true
+    
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+        pip install -r tests/requirements.txt
+      displayName: 'Install dependencies'
+    
+    - script: |
+        python -m pytest tests/unit/ -v --cov=backend --cov-report=xml --cov-report=html --cov-report=term --junitxml=test-results/unit-tests.xml
+      displayName: 'Run unit tests with coverage'
+    
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: 'test-results/*.xml'
+        mergeTestResults: true
+        testRunTitle: 'Unit Tests'
+      condition: succeededOrFailed()
+    
+    - task: PublishCodeCoverageResults@1
+      inputs:
+        codeCoverageTool: 'Cobertura'
+        summaryFileLocation: 'coverage.xml'
+        reportDirectory: 'htmlcov'
+      condition: succeededOrFailed()
+    
+    - script: |
+        python -m pytest tests/integration/ -v --junitxml=test-results/integration-tests.xml
+      displayName: 'Run integration tests'
+    
+    - script: |
+        python -m pytest tests/security/ -v --junitxml=test-results/security-tests.xml
+      displayName: 'Run security tests'
+    
+    - script: |
+        python -m pytest tests/compliance/ -v --junitxml=test-results/compliance-tests.xml
+      displayName: 'Run compliance tests'
+    
+    - script: |
+        python -m pytest tests/performance/ -v --junitxml=test-results/performance-tests.xml
+      displayName: 'Run performance tests'
+    
+    - task: PublishTestResults@2
+      inputs:
+        testResultsFormat: 'JUnit'
+        testResultsFiles: 'test-results/*.xml'
+        mergeTestResults: true
+        testRunTitle: 'All Tests'
+      condition: succeededOrFailed()
+
+- stage: Security
+  displayName: 'Security & Compliance'
+  dependsOn: Test
+  condition: succeeded()
+  jobs:
+  - job: SecurityScan
+    displayName: 'Security Scanning'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
+        addToPath: true
+    
+    - script: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+      displayName: 'Install security tools'
+    
+    - script: |
+        python -m bandit -r backend/ -f json -o bandit-report.json
+      displayName: 'Run Bandit security scan'
+      continueOnError: true
+    
+    - script: |
+        python -m safety check --json --output safety-report.json
+      displayName: 'Run Safety dependency check'
+      continueOnError: true
+    
+    - script: |
+        cd frontend
+        npm audit --audit-level=moderate --json > ../npm-audit-report.json
+      displayName: 'Run npm audit'
+      continueOnError: true
+    
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '*.json'
+        artifact: 'security-reports'
+        publishLocation: 'pipeline'
+      condition: succeededOrFailed()
+
+- stage: Build
+  displayName: 'Build Applications'
+  dependsOn: Security
+  condition: succeeded()
+  jobs:
+  - job: BuildBackend
+    displayName: 'Build Backend'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
+        addToPath: true
+    
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r backend/requirements.txt
+      displayName: 'Install dependencies'
+    
+    - script: |
+        cd backend
+        python -m py_compile **/*.py
+      displayName: 'Compile Python code'
+    
+    - script: |
+        cd backend
+        tar -czf ../backend-build.tar.gz .
+      displayName: 'Package backend'
+    
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: 'backend-build.tar.gz'
+        artifact: 'backend-build'
+        publishLocation: 'pipeline'
+    
+  - job: BuildFunctions
+    displayName: 'Build Azure Functions'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: UsePythonVersion@0
+      inputs:
+        versionSpec: '3.11'
+        addToPath: true
+    
+    - script: |
+        python -m pip install --upgrade pip
+        pip install -r azure-functions/requirements.txt
+      displayName: 'Install dependencies'
+    
+    - script: |
+        cd azure-functions
+        python -m py_compile **/*.py
+      displayName: 'Compile Python code'
+    
+    - script: |
+        cd azure-functions
+        tar -czf ../functions-build.tar.gz .
+      displayName: 'Package functions'
+    
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: 'functions-build.tar.gz'
+        artifact: 'functions-build'
+        publishLocation: 'pipeline'
+    
+  - job: BuildFrontend
+    displayName: 'Build Frontend'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - task: NodeTool@0
+      inputs:
+        versionSpec: '18.x'
+    
+    - script: |
+        cd frontend
+        npm ci
+      displayName: 'Install dependencies'
+    
+    - script: |
+        cd frontend
+        npm run build
+      displayName: 'Build frontend'
+    
+    - script: |
+        cd frontend
+        npm run export
+      displayName: 'Export static files'
+    
+    - script: |
+        cd frontend/out
+        tar -czf ../../frontend-build.tar.gz .
+      displayName: 'Package frontend'
+    
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: 'frontend-build.tar.gz'
+        artifact: 'frontend-build'
+        publishLocation: 'pipeline'
+
+- stage: DeployInfrastructure
+  displayName: 'Deploy Infrastructure'
+  dependsOn: Build
+  condition: succeeded()
+  jobs:
+  - deployment: DeployInfrastructure
+    displayName: 'Deploy to Production'
+    environment: $(environmentName)
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: 'backend-build'
+          
+          - download: current
+            artifact: 'functions-build'
+          
+          - download: current
+            artifact: 'frontend-build'
+          
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(azureSubscription)
+              scriptType: 'pscore'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                Write-Host "Deploying production infrastructure..."
+                cd infrastructure/production
+                .\deploy.ps1 -ResourceGroupName "$(resourceGroupName)" -Location "$(location)" -Environment "prod"
+            displayName: 'Deploy Infrastructure'
+          
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appName: $(backendAppName)
+              package: '$(Pipeline.Workspace)/backend-build/backend-build.tar.gz'
+              appType: 'webAppLinux'
+              runtimeStack: 'PYTHON|3.11'
+            displayName: 'Deploy Backend'
+          
+          - task: AzureFunctionApp@1
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appName: $(functionsAppName)
+              package: '$(Pipeline.Workspace)/functions-build/functions-build.tar.gz'
+              appType: 'functionAppLinux'
+              runtimeStack: 'PYTHON|3.11'
+            displayName: 'Deploy Azure Functions'
+          
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: $(azureSubscription)
+              appName: $(frontendAppName)
+              package: '$(Pipeline.Workspace)/frontend-build/frontend-build.tar.gz'
+              appType: 'webAppLinux'
+              runtimeStack: 'NODE|18-lts'
+            displayName: 'Deploy Frontend'
+
+- stage: PostDeployment
+  displayName: 'Post-Deployment'
+  dependsOn: DeployInfrastructure
+  condition: succeeded()
+  jobs:
+  - job: HealthCheck
+    displayName: 'Health Check'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - script: |
+        echo "Running post-deployment health checks..."
+        # Add health check scripts here
+        sleep 30
+      displayName: 'Wait for services to start'
+    
+    - script: |
+        # Test backend health
+        curl -f https://$(backendAppName).azurewebsites.net/health || exit 1
+      displayName: 'Check backend health'
+    
+    - script: |
+        # Test functions health
+        curl -f https://$(functionsAppName).azurewebsites.net/api/health || exit 1
+      displayName: 'Check functions health'
+    
+    - script: |
+        # Test frontend health
+        curl -f https://$(frontendAppName).azurewebsites.net || exit 1
+      displayName: 'Check frontend health'
+    
+    - script: |
+        echo "All health checks passed!"
+      displayName: 'Health check summary'
+
+- stage: Notify
+  displayName: 'Notifications'
+  dependsOn: 
+    - DeployInfrastructure
+    - PostDeployment
+  condition: always()
+  jobs:
+  - job: NotifyTeam
+    displayName: 'Notify Team'
+    pool:
+      vmImage: 'ubuntu-latest'
+    
+    steps:
+    - script: |
+        if [ "$(DeployInfrastructure.result)" == "Succeeded" ] && [ "$(PostDeployment.result)" == "Succeeded" ]; then
+          echo "Deployment successful! Notifying team..."
+          # Add notification logic here (Slack, Teams, email, etc.)
+        else
+          echo "Deployment failed! Alerting team..."
+          # Add alert logic here
+        fi
+      displayName: 'Send notifications'
+
+# Staging deployment with slot, health checks, approval, and swap
+- stage: DeployToStaging
+  displayName: 'Deploy to Staging Slot'
+  dependsOn: DeployInfrastructure
+  condition: succeeded()
+  jobs:
+  - job: DeployAppsToStaging
+    displayName: 'Deploy apps to staging slot'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - download: current
+      artifact: 'backend-build'
+    - download: current
+      artifact: 'functions-build'
+    - download: current
+      artifact: 'frontend-build'
+    - task: AzureWebApp@1
+      displayName: 'Deploy Backend (staging slot)'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        appName: $(backendAppName)
+        package: '$(Pipeline.Workspace)/backend-build/backend-build.tar.gz'
+        appType: 'webAppLinux'
+        runtimeStack: 'PYTHON|3.11'
+        slotName: '$(slotName)'
+    - task: AzureFunctionApp@1
+      displayName: 'Deploy Functions (staging slot)'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        appName: $(functionsAppName)
+        package: '$(Pipeline.Workspace)/functions-build/functions-build.tar.gz'
+        appType: 'functionAppLinux'
+        runtimeStack: 'PYTHON|3.11'
+        slotName: '$(slotName)'
+    - task: AzureWebApp@1
+      displayName: 'Deploy Frontend (staging slot)'
+      inputs:
+        azureSubscription: $(azureSubscription)
+        appName: $(frontendAppName)
+        package: '$(Pipeline.Workspace)/frontend-build/frontend-build.tar.gz'
+        appType: 'webAppLinux'
+        runtimeStack: 'NODE|18-lts'
+        slotName: '$(slotName)'
+
+- stage: StagingHealthCheck
+  displayName: 'Staging Health Check'
+  dependsOn: DeployToStaging
+  condition: succeeded()
+  jobs:
+  - job: CheckStaging
+    displayName: 'Validate staging endpoints'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - script: |
+        echo "Warming up staging..."
+        sleep 20
+      displayName: 'Warmup'
+    - script: |
+        curl -f https://$(backendAppName)-$(slotName).azurewebsites.net/health || exit 1
+      displayName: 'Backend staging health'
+    - script: |
+        curl -f https://$(functionsAppName)-$(slotName).azurewebsites.net/api/health || exit 1
+      displayName: 'Functions staging health'
+    - script: |
+        curl -f https://$(frontendAppName)-$(slotName).azurewebsites.net || exit 1
+      displayName: 'Frontend staging health'
+
+- stage: ManualApproval
+  displayName: 'Manual Approval for Production Swap'
+  dependsOn: StagingHealthCheck
+  condition: succeeded()
+  jobs:
+  - job: Approval
+    displayName: 'Approve to swap to production'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: ManualValidation@0
+      inputs:
+        instructions: 'Review staging. Approve to swap to production.'
+        onTimeout: 'reject'
+        timeout: '1:00:00'
+
+- stage: SwapToProduction
+  displayName: 'Swap Staging -> Production'
+  dependsOn: ManualApproval
+  condition: succeeded()
+  jobs:
+  - job: SlotSwap
+    displayName: 'Swap slots and verify'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: $(azureSubscription)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          set -e
+          echo "Swapping backend $(slotName) -> production"
+          az webapp deployment slot swap -g $(resourceGroupName) -n $(backendAppName) --slot $(slotName) --target-slot production
+          echo "Swapping functions $(slotName) -> production"
+          az webapp deployment slot swap -g $(resourceGroupName) -n $(functionsAppName) --slot $(slotName) --target-slot production
+          echo "Swapping frontend $(slotName) -> production"
+          az webapp deployment slot swap -g $(resourceGroupName) -n $(frontendAppName) --slot $(slotName) --target-slot production
+
+- stage: PostSwapHealthCheck
+  displayName: 'Post-Swap Production Health Check'
+  dependsOn: SwapToProduction
+  condition: succeeded()
+  jobs:
+  - job: CheckProduction
+    displayName: 'Validate production endpoints'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - script: |
+        echo "Warming up production..."
+        sleep 20
+      displayName: 'Warmup'
+    - script: |
+        curl -f https://$(backendAppName).azurewebsites.net/health || exit 1
+      displayName: 'Backend production health'
+    - script: |
+        curl -f https://$(functionsAppName).azurewebsites.net/api/health || exit 1
+      displayName: 'Functions production health'
+    - script: |
+        curl -f https://$(frontendAppName).azurewebsites.net || exit 1
+      displayName: 'Frontend production health'
+
+- stage: Rollback
+  displayName: 'Rollback to Previous Version'
+  dependsOn: PostSwapHealthCheck
+  condition: failed()
+  jobs:
+  - job: SwapBack
+    displayName: 'Swap back production -> staging'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+    - task: AzureCLI@2
+      inputs:
+        azureSubscription: $(azureSubscription)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          set -e
+          echo "Rolling back backend to previous version"
+          az webapp deployment slot swap -g $(resourceGroupName) -n $(backendAppName) --slot production --target-slot $(slotName)
+          echo "Rolling back functions to previous version"
+          az webapp deployment slot swap -g $(resourceGroupName) -n $(functionsAppName) --slot production --target-slot $(slotName)
+          echo "Rolling back frontend to previous version"
+          az webapp deployment slot swap -g $(resourceGroupName) -n $(frontendAppName) --slot production --target-slot $(slotName)
+

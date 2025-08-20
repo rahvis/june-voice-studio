@@ -1,0 +1,272 @@
+{
+  "test_suites": {
+    "unit": {
+      "enabled": true,
+      "timeout": 300,
+      "parallel": false,
+      "coverage": true,
+      "include_patterns": ["test_*.py"],
+      "exclude_patterns": ["*_integration.py", "*_performance.py"]
+    },
+    "integration": {
+      "enabled": true,
+      "timeout": 600,
+      "parallel": false,
+      "coverage": true,
+      "include_patterns": ["test_*_integration.py"],
+      "exclude_patterns": []
+    },
+    "performance": {
+      "enabled": true,
+      "timeout": 1800,
+      "parallel": true,
+      "coverage": false,
+      "include_patterns": ["test_*_performance.py", "*_load_testing.py"],
+      "exclude_patterns": [],
+      "metrics": {
+        "response_time_threshold": 200,
+        "throughput_threshold": 1000,
+        "error_rate_threshold": 1.0,
+        "concurrent_users": 100
+      }
+    },
+    "security": {
+      "enabled": true,
+      "timeout": 900,
+      "parallel": false,
+      "coverage": true,
+      "include_patterns": ["test_*_security.py", "*_security_testing.py"],
+      "exclude_patterns": [],
+      "vulnerability_scan": true,
+      "penetration_testing": false
+    },
+    "compliance": {
+      "enabled": true,
+      "timeout": 600,
+      "parallel": false,
+      "coverage": true,
+      "include_patterns": ["test_*_compliance.py", "*_compliance_validation.py"],
+      "exclude_patterns": [],
+      "frameworks": ["GDPR", "HIPAA", "SOC2", "ISO27001"]
+    }
+  },
+  "test_environment": {
+    "base_url": "http://localhost:8000",
+    "api_version": "v1",
+    "timeout": 30,
+    "retry_attempts": 3,
+    "mock_external_services": true,
+    "test_data_dir": "test_data",
+    "results_dir": "test_results"
+  },
+  "reporting": {
+    "generate_html_report": true,
+    "generate_json_report": true,
+    "generate_junit_report": true,
+    "coverage_report": true,
+    "performance_report": true,
+    "security_report": true,
+    "compliance_report": true,
+    "email_notifications": false,
+    "slack_notifications": false
+  },
+  "coverage": {
+    "minimum_coverage": 80,
+    "exclude_patterns": [
+      "*/tests/*",
+      "*/migrations/*",
+      "*/venv/*",
+      "*/__pycache__/*",
+      "*/node_modules/*"
+    ],
+    "include_patterns": [
+      "*.py",
+      "*.js",
+      "*.ts",
+      "*.tsx"
+    ]
+  },
+  "performance": {
+    "load_testing": {
+      "ramp_up_time": 60,
+      "peak_load_time": 300,
+      "ramp_down_time": 60,
+      "concurrent_users": [10, 25, 50, 100, 200],
+      "think_time": 1,
+      "timeout": 30
+    },
+    "stress_testing": {
+      "max_concurrent_users": 500,
+      "step_size": 25,
+      "step_duration": 60,
+      "break_point_threshold": 50
+    },
+    "endurance_testing": {
+      "concurrent_users": 100,
+      "duration_minutes": 60,
+      "monitoring_interval": 10
+    }
+  },
+  "security": {
+    "vulnerability_scanning": {
+      "enabled": true,
+      "scan_frequency": "daily",
+      "severity_thresholds": {
+        "critical": 0,
+        "high": 0,
+        "medium": 5,
+        "low": 10
+      }
+    },
+    "penetration_testing": {
+      "enabled": false,
+      "scope": "internal",
+      "frequency": "quarterly",
+      "reporting": "detailed"
+    },
+    "authentication_testing": {
+      "test_jwt_tokens": true,
+      "test_oauth_flows": true,
+      "test_mfa": true,
+      "test_session_management": true
+    },
+    "authorization_testing": {
+      "test_rbac": true,
+      "test_permission_escalation": true,
+      "test_resource_isolation": true
+    },
+    "input_validation": {
+      "test_sql_injection": true,
+      "test_xss": true,
+      "test_path_traversal": true,
+      "test_file_upload": true
+    }
+  },
+  "compliance": {
+    "gdpr": {
+      "enabled": true,
+      "data_subject_rights": true,
+      "consent_management": true,
+      "data_minimization": true,
+      "breach_notification": true,
+      "dpo_contact": "dpo@company.com"
+    },
+    "hipaa": {
+      "enabled": true,
+      "phi_identification": true,
+      "access_controls": true,
+      "audit_trails": true,
+      "encryption": true,
+      "breach_notification": true
+    },
+    "soc2": {
+      "enabled": true,
+      "security_controls": true,
+      "availability_controls": true,
+      "processing_integrity": true,
+      "confidentiality_controls": true,
+      "privacy_controls": true
+    },
+    "iso27001": {
+      "enabled": false,
+      "information_security_policy": false,
+      "risk_assessment": false,
+      "access_control": false,
+      "incident_management": false
+    }
+  },
+  "notifications": {
+    "email": {
+      "enabled": false,
+      "smtp_server": "smtp.company.com",
+      "smtp_port": 587,
+      "username": "test-reports@company.com",
+      "recipients": ["qa-team@company.com", "dev-team@company.com"]
+    },
+    "slack": {
+      "enabled": false,
+      "webhook_url": "https://hooks.slack.com/services/...",
+      "channel": "#test-reports",
+      "notify_on_failure": true,
+      "notify_on_completion": true
+    }
+  },
+  "ci_cd": {
+    "jenkins": {
+      "enabled": false,
+      "job_name": "voice-cloning-tests",
+      "build_number": "${BUILD_NUMBER}",
+      "workspace": "${WORKSPACE}"
+    },
+    "github_actions": {
+      "enabled": false,
+      "workflow_name": "test-suite",
+      "run_id": "${GITHUB_RUN_ID}",
+      "repository": "${GITHUB_REPOSITORY}"
+    },
+    "azure_devops": {
+      "enabled": false,
+      "pipeline_name": "voice-cloning-tests",
+      "build_id": "${BUILD_BUILDID}",
+      "project": "${SYSTEM_TEAMPROJECT}"
+    }
+  },
+  "monitoring": {
+    "application_insights": {
+      "enabled": true,
+      "connection_string": "${APPINSIGHTS_CONNECTION_STRING}",
+      "instrumentation_key": "${APPINSIGHTS_INSTRUMENTATIONKEY}"
+    },
+    "azure_monitor": {
+      "enabled": true,
+      "workspace_id": "${LOG_ANALYTICS_WORKSPACE_ID}",
+      "shared_key": "${LOG_ANALYTICS_WORKSPACE_KEY}"
+    },
+    "custom_metrics": {
+      "enabled": true,
+      "endpoint": "https://api.company.com/metrics",
+      "api_key": "${METRICS_API_KEY}"
+    }
+  },
+  "test_data": {
+    "voice_samples": {
+      "enabled": true,
+      "directory": "test_data/voice_samples",
+      "formats": ["wav", "mp3", "m4a"],
+      "duration_range": [5, 30],
+      "quality_levels": ["low", "medium", "high"]
+    },
+    "user_profiles": {
+      "enabled": true,
+      "count": 100,
+      "languages": ["en-US", "es-ES", "fr-FR", "de-DE", "ja-JP"],
+      "age_range": [18, 65],
+      "genders": ["male", "female", "non-binary"]
+    },
+    "consent_records": {
+      "enabled": true,
+      "count": 1000,
+      "consent_types": ["voice_cloning", "data_processing", "third_party_sharing"],
+      "statuses": ["active", "withdrawn", "expired"]
+    }
+  },
+  "execution": {
+    "parallel_execution": {
+      "enabled": true,
+      "max_workers": 4,
+      "chunk_size": 10
+    },
+    "retry_logic": {
+      "enabled": true,
+      "max_retries": 3,
+      "retry_delay": 5,
+      "backoff_multiplier": 2
+    },
+    "timeout_handling": {
+      "enabled": true,
+      "default_timeout": 30,
+      "long_running_timeout": 300,
+      "grace_period": 10
+    }
+  }
+}
