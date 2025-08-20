@@ -3,6 +3,8 @@
 ## Overview
 An Azure-first, enterprise-grade voice cloning system that leverages Azure AI Speech (including Custom Neural Voice), Azure OpenAI (including gpt-4o-mini-tts), and Azure Translator. The platform provides secure voice enrollment, model training, real-time and batch text-to-speech synthesis, translation, and end-to-end observability, with strong security and compliance foundations.
 
+<img width="1440" height="742" alt="Screenshot 2025-08-20 at 12 50 53 AM" src="https://github.com/user-attachments/assets/41b85b4e-02b1-48c4-ae1e-be38afc10c63" />
+
 ## Key Features
 - Voice Enrollment with consent capture and audit trail
 - Custom Neural Voice (CNV) training orchestration
